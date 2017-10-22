@@ -43,6 +43,8 @@ class QLearningAgent(ReinforcementAgent):
         ReinforcementAgent.__init__(self, **args)
 
         "*** YOUR CODE HERE ***"
+        self.q_states = util.Counter() # A Counter is a dict with default 0
+        
 
     def getQValue(self, state, action):
         """
@@ -51,7 +53,11 @@ class QLearningAgent(ReinforcementAgent):
           or the Q node value otherwise
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        if state in self.q_states:
+            values = self.q_states[state]
+            return values[action]
+        else:
+            return 0.0
 
 
     def computeValueFromQValues(self, state):
@@ -62,7 +68,13 @@ class QLearningAgent(ReinforcementAgent):
           terminal state, you should return a value of 0.0.
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        actions = self.getLegalActions(state)
+        if len(actions) == 0:
+            return 0.0
+        max_value = float('-inf')
+        for action in actions:
+            max_value = max(max_value, self.getQValue(state, action))
+        return max_value
 
     def computeActionFromQValues(self, state):
         """
@@ -71,7 +83,20 @@ class QLearningAgent(ReinforcementAgent):
           you should return None.
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        actions = self.getLegalActions(state)
+        if len(actions) == 0:
+            return None
+        max_value = float('-inf')
+        max_actions = []
+        for action in actions:
+            value = self.getQValue(state, action)
+            if max_value > value:
+                continue
+            elif max_value < value:
+                del max_actions[:]
+                max_value = value
+            max_actions.append(action)
+        return random.choice(max_actions)
 
     def getAction(self, state):
         """
@@ -88,8 +113,11 @@ class QLearningAgent(ReinforcementAgent):
         legalActions = self.getLegalActions(state)
         action = None
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
-
+        if len(legalActions) > 0:
+            if util.flipCoin(self.epsilon): # pick a random action
+                action = random.choice(legalActions)
+            else: # behave greedily
+                action = self.computeActionFromQValues(state)
         return action
 
     def update(self, state, action, nextState, reward):
@@ -102,7 +130,13 @@ class QLearningAgent(ReinforcementAgent):
           it will be called on your behalf
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        q_actions = util.Counter()
+        if state in self.q_states:
+            q_actions = self.q_states[state]
+        best_value = self.computeValueFromQValues(nextState)
+        q_actions[action] = q_actions[action] + self.alpha * (reward + 
+                 self.discount * best_value - q_actions[action])
+        self.q_states[state] = q_actions
 
     def getPolicy(self, state):
         return self.computeActionFromQValues(state)
@@ -165,14 +199,23 @@ class ApproximateQAgent(PacmanQAgent):
           where * is the dotProduct operator
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        value = 0
+        features = self.featExtractor.getFeatures(state, action)
+        for feature in features:
+            value += self.weights[feature] * features[feature]
+        return value
 
     def update(self, state, action, nextState, reward):
         """
            Should update your weights based on transition
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        best_value = self.computeValueFromQValues(nextState)
+        diff = reward + self.discount * best_value - self.getQValue(state, action)
+        features = self.featExtractor.getFeatures(state, action)
+        for feature in features:
+            self.weights[feature] += self.alpha * diff * features[feature]
+        
 
     def final(self, state):
         "Called at the end of each game."
